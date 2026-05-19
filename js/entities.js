@@ -2,6 +2,13 @@
 // entities.js — Enemies, bullets, pickups (spawning, AI, drawing)
 // ============================================================
 
+// FIX #8: helper for frame-rate-independent exponential approach.
+// `factor` is the per-frame-at-60fps lerp factor (e.g. 0.05).
+// At dt=1 it equals factor; at dt=2 it's correctly compounded.
+NP.expLerp = function(factor, dt) {
+  return 1 - Math.pow(1 - factor, dt);
+};
+
 // =====================================================
 // ENEMIES
 // =====================================================
@@ -16,6 +23,9 @@ NP.Enemies = {
       hitFlash: 0, angle: 0,
       fireTimer: NP.rand(60, 120),
       wobble: NP.rand(0, NP.TAU),
+      // FIX #6: defaults so that an unknown type can't NaN the scoring system
+      speed: 1.0,
+      score: 100,
     };
 
     switch (type) {
@@ -57,6 +67,8 @@ NP.Enemies = {
         e.r = 70; e.hp = e.maxHp = 100; e.speed = 0.5;
         e.color = '#ff003c'; e.score = 5000;
         e.isBoss = true; e.fireRate = 30; e.phase = 1; break;
+      default:
+        console.warn('[Enemies] unknown type:', type);
     }
     NP.enemies.push(e);
     return e;
@@ -111,6 +123,8 @@ NP.Enemies = {
   },
 
   // ---- AI behaviors ---------------------------------------------
+  // FIX #8: every NP.lerp call below now uses NP.expLerp(rate, T) so the AI
+  // behaves identically regardless of refresh rate / lag spikes.
   ai_chase(e, da, d, T) {
     let mx = Math.cos(da) * e.speed;
     let my = Math.sin(da) * e.speed;
@@ -118,15 +132,17 @@ NP.Enemies = {
       mx += Math.cos(e.wobble * 3) * 0.6;
       my += Math.sin(e.wobble * 3) * 0.6;
     }
-    e.vx = NP.lerp(e.vx, mx, 0.05);
-    e.vy = NP.lerp(e.vy, my, 0.05);
+    const k = NP.expLerp(0.05, T);
+    e.vx = NP.lerp(e.vx, mx, k);
+    e.vy = NP.lerp(e.vy, my, k);
   },
 
   ai_shooter(e, da, d, T) {
     const target = 300;
     const moveAng = d > target ? da : (d < target - 40 ? da + Math.PI : da + Math.PI / 2);
-    e.vx = NP.lerp(e.vx, Math.cos(moveAng) * e.speed, 0.1);
-    e.vy = NP.lerp(e.vy, Math.sin(moveAng) * e.speed, 0.1);
+    const k = NP.expLerp(0.1, T);
+    e.vx = NP.lerp(e.vx, Math.cos(moveAng) * e.speed, k);
+    e.vy = NP.lerp(e.vy, Math.sin(moveAng) * e.speed, k);
     e.fireTimer -= T;
     if (e.fireTimer <= 0) {
       e.fireTimer = e.fireRate;
@@ -134,7 +150,8 @@ NP.Enemies = {
       NP.enemyBullets.push({
         x: e.x, y: e.y,
         vx: Math.cos(da) * sp, vy: Math.sin(da) * sp,
-        r: 5, life: 160, color: e.color, damage: 10
+        r: 5, life: 160, color: e.color, damage: 10,
+        trailTimer: 0,
       });
       NP.Effects.spawnParticles(e.x, e.y, 4, e.color, { speed: 2, life: 14, size: 2 });
     }
@@ -146,8 +163,9 @@ NP.Enemies = {
     const tx = NP.player.x + Math.cos(e.orbitAngle) * target;
     const ty = NP.player.y + Math.sin(e.orbitAngle) * target;
     const oa = NP.angleTo(e.x, e.y, tx, ty);
-    e.vx = NP.lerp(e.vx, Math.cos(oa) * e.speed, 0.08);
-    e.vy = NP.lerp(e.vy, Math.sin(oa) * e.speed, 0.08);
+    const k = NP.expLerp(0.08, T);
+    e.vx = NP.lerp(e.vx, Math.cos(oa) * e.speed, k);
+    e.vy = NP.lerp(e.vy, Math.sin(oa) * e.speed, k);
     e.fireTimer -= T;
     if (e.fireTimer <= 0 && d < 350) {
       e.fireTimer = 80;
@@ -155,13 +173,16 @@ NP.Enemies = {
       NP.enemyBullets.push({
         x: e.x, y: e.y,
         vx: Math.cos(da) * sp, vy: Math.sin(da) * sp,
-        r: 4, life: 120, color: e.color, damage: 8
+        r: 4, life: 120, color: e.color, damage: 8,
+        trailTimer: 0,
       });
     }
   },
 
   ai_sniper(e, da, d, T) {
-    e.vx *= 0.9; e.vy *= 0.9;
+    // FIX #8: frame-rate-independent drag
+    const drag = Math.pow(0.9, T);
+    e.vx *= drag; e.vy *= drag;
     e.fireTimer -= T;
     // Aim warning beam (last 60 frames before firing)
     if (e.fireTimer < 60 && e.fireTimer > 0) {
@@ -200,18 +221,20 @@ NP.Enemies = {
     const target = 250;
     const orbitAng = da + Math.PI / 2 + Math.sin(NP.state.time * 0.012) * 0.6;
     const moveAng = d > target + 80 ? da : (d < target - 80 ? da + Math.PI : orbitAng);
-    e.vx = NP.lerp(e.vx, Math.cos(moveAng) * e.speed, 0.05);
-    e.vy = NP.lerp(e.vy, Math.sin(moveAng) * e.speed, 0.05);
+    const k = NP.expLerp(0.05, T);
+    e.vx = NP.lerp(e.vx, Math.cos(moveAng) * e.speed, k);
+    e.vy = NP.lerp(e.vy, Math.sin(moveAng) * e.speed, k);
     e.fireTimer -= T;
     if (e.fireTimer <= 0) {
       e.fireTimer = e.fireRate;
       const n = 5, off = NP.state.time * 0.04;
-      for (let k = 0; k < n; k++) {
-        const a = (k / n) * NP.TAU + off;
+      for (let kk = 0; kk < n; kk++) {
+        const a = (kk / n) * NP.TAU + off;
         NP.enemyBullets.push({
           x: e.x, y: e.y,
           vx: Math.cos(a) * 4, vy: Math.sin(a) * 4,
-          r: 6, life: 180, color: e.color, damage: 12
+          r: 6, life: 180, color: e.color, damage: 12,
+          trailTimer: 0,
         });
       }
     }
@@ -232,8 +255,9 @@ NP.Enemies = {
     else                          moveAng = orbitAng;
 
     const speedMult = e.phase >= 2 ? 1.3 : 1;
-    e.vx = NP.lerp(e.vx, Math.cos(moveAng) * e.speed * speedMult, 0.05);
-    e.vy = NP.lerp(e.vy, Math.sin(moveAng) * e.speed * speedMult, 0.05);
+    const k = NP.expLerp(0.05, T);
+    e.vx = NP.lerp(e.vx, Math.cos(moveAng) * e.speed * speedMult, k);
+    e.vy = NP.lerp(e.vy, Math.sin(moveAng) * e.speed * speedMult, k);
 
     e.fireTimer -= T;
     if (e.fireTimer <= 0) {
@@ -241,11 +265,11 @@ NP.Enemies = {
       if (e.phase === 1) {
         // 8-way radial
         const n = 8, off = NP.state.time * 0.05;
-        for (let k = 0; k < n; k++) {
-          const a = (k / n) * NP.TAU + off;
+        for (let kk = 0; kk < n; kk++) {
+          const a = (kk / n) * NP.TAU + off;
           NP.enemyBullets.push({
             x: e.x, y: e.y, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4,
-            r: 6, life: 200, color: e.color, damage: 12
+            r: 6, life: 200, color: e.color, damage: 12, trailTimer: 0,
           });
         }
       } else if (e.phase === 2) {
@@ -254,22 +278,22 @@ NP.Enemies = {
           const a = NP.state.time * 0.05 + s * NP.TAU / 3;
           NP.enemyBullets.push({
             x: e.x, y: e.y, vx: Math.cos(a) * 5, vy: Math.sin(a) * 5,
-            r: 7, life: 200, color: e.color, damage: 12
+            r: 7, life: 200, color: e.color, damage: 12, trailTimer: 0,
           });
         }
       } else {
         // 12-way radial + aimed shot
         const n = 12, off = NP.state.time * 0.08;
-        for (let k = 0; k < n; k++) {
-          const a = (k / n) * NP.TAU + off;
+        for (let kk = 0; kk < n; kk++) {
+          const a = (kk / n) * NP.TAU + off;
           NP.enemyBullets.push({
             x: e.x, y: e.y, vx: Math.cos(a) * 5, vy: Math.sin(a) * 5,
-            r: 7, life: 220, color: e.color, damage: 14
+            r: 7, life: 220, color: e.color, damage: 14, trailTimer: 0,
           });
         }
         NP.enemyBullets.push({
           x: e.x, y: e.y, vx: Math.cos(da) * 7, vy: Math.sin(da) * 7,
-          r: 9, life: 200, color: '#fff', damage: 18
+          r: 9, life: 200, color: '#fff', damage: 18, trailTimer: 0,
         });
       }
       NP.Effects.spawnShockwave(e.x, e.y, e.color, 90, 22);
@@ -284,10 +308,14 @@ NP.Enemies = {
       b.x += b.vx * T;
       b.y += b.vy * T;
       b.life -= T;
-      if (Math.random() < 0.3) {
+      // FIX #12: timer-based trail spawn so it doesn't go crazy at high refresh
+      // rates and doesn't stop in slow-mo. Spawns roughly every ~3 frames at 60fps.
+      b.trailTimer = (b.trailTimer || 0) - T;
+      if (b.trailTimer <= 0) {
         NP.Effects.spawnParticles(b.x, b.y, 1, b.color, {
           speed: 0.2, life: 14, size: 1.5, drag: 0.9
         });
+        b.trailTimer = 3;
       }
       if (b.life <= 0 || b.x < -30 || b.x > NP.W + 30 || b.y < -30 || b.y > NP.H + 30) {
         NP.enemyBullets.splice(i, 1);
@@ -308,6 +336,7 @@ NP.Enemies = {
         // Line-vs-point distance
         const dx = l.x2 - l.x1, dy = l.y2 - l.y1;
         const len2 = dx * dx + dy * dy;
+        if (len2 < 0.0001) continue; // guard against degenerate beams
         const t = NP.clamp(((NP.player.x - l.x1) * dx + (NP.player.y - l.y1) * dy) / len2, 0, 1);
         const px = l.x1 + t * dx, py = l.y1 + t * dy;
         if (NP.dist(px, py, NP.player.x, NP.player.y) < NP.player.r + 4) {
@@ -539,22 +568,16 @@ NP.Bullets = {
       for (let j = NP.enemies.length - 1; j >= 0; j--) {
         const e = NP.enemies[j];
         if (NP.dist(b.x, b.y, e.x, e.y) < b.r + e.r) {
-          // Shield first
-          if (e.shield && e.shield > 0) {
-            e.shield -= b.damage * 25;
-            e.hitFlash = 6;
-            NP.Effects.spawnParticles(b.x, b.y, 4, '#2effb8', { speed: 3, life: 14, size: 2 });
-            NP.sfx.hit();
-            if (b.pierce > 0) b.pierce--;
-            else { NP.bullets.splice(i, 1); consumed = true; }
-            break;
-          }
-          // Regular damage
-          e.hp -= b.damage;
-          e.hitFlash = 8;
-          NP.Effects.spawnParticles(b.x, b.y, 6, e.color, { speed: 4, life: 20, size: 3 });
+          // FIX #3: route through damageEnemy for consistent shield handling.
+          // (No behaviour change here — Bullets already handled shields — but
+          // it keeps the rule in one place.)
+          const shielded = e.shield && e.shield > 0;
+          NP.Player.damageEnemy(e, b.damage);
+          NP.Effects.spawnParticles(b.x, b.y, shielded ? 4 : 6,
+            shielded ? '#2effb8' : e.color,
+            { speed: shielded ? 3 : 4, life: shielded ? 14 : 20, size: shielded ? 2 : 3 });
           NP.sfx.hit();
-          if (e.hp <= 0) NP.Player.killEnemy(e);
+
           if (b.explode) {
             NP.Player.applyExplosion(b.x, b.y, 80, 2);
             NP.bullets.splice(i, 1);

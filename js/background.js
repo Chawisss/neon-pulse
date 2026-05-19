@@ -2,6 +2,9 @@
 // background.js — Parallax stars, nebulas, animated grid
 // ============================================================
 
+// FIX #10: positive modulo helper. JS `-5 % 60` returns -5; we want 55.
+function pmod(v, m) { return ((v % m) + m) % m; }
+
 NP.Background = {
   starLayers: [],
   nebulas: [],
@@ -41,6 +44,13 @@ NP.Background = {
       n.x += Math.cos(n.drift) * n.speed * T;
       n.y += Math.sin(n.drift) * n.speed * T;
     }
+    // FIX #9: advance star twinkle here (frame-rate-independent) instead of
+    // in draw(). Draw should be pure rendering, and `+= 0.03` ignored T entirely.
+    for (const layer of this.starLayers) {
+      for (const s of layer.stars) {
+        s.tw += 0.03 * T;
+      }
+    }
   },
 
   draw(ctx) {
@@ -63,28 +73,33 @@ NP.Background = {
     }
     ctx.restore();
 
-    // Stars (3 parallax layers)
+    // FIX #13: stars use one fillStyle per layer (base color) + globalAlpha
+    // for twinkle, instead of building a fresh rgba() string for every star.
+    // That kills ~21,000 string allocations per second.
     for (const layer of this.starLayers) {
+      ctx.fillStyle = `rgb(${layer.color})`;
       for (const s of layer.stars) {
-        s.tw += 0.03;
         const tw = 0.7 + Math.sin(s.tw) * 0.3;
-        const px = (s.x - (NP.player.x - W / 2) * layer.speed * 0.08 + W * 100) % W;
-        const py = (s.y - (NP.player.y - H / 2) * layer.speed * 0.08 + H * 100) % H;
-        ctx.fillStyle = `rgba(${layer.color}, ${tw * 0.7})`;
+        const px = pmod(s.x - (NP.player.x - W / 2) * layer.speed * 0.08, W);
+        const py = pmod(s.y - (NP.player.y - H / 2) * layer.speed * 0.08, H);
+        ctx.globalAlpha = tw * 0.7;
         ctx.fillRect(px, py, s.r * tw, s.r * tw);
       }
     }
+    ctx.globalAlpha = 1;
 
     // Animated grid
     const gridSize = 60;
     const pulse = 0.05 + Math.sin(NP.state.time * 0.02) * 0.03;
     ctx.strokeStyle = `rgba(157, 107, 255, ${pulse})`;
     ctx.lineWidth = 1;
-    const ox = (NP.state.time * 0.15 - NP.player.x * 0.05) % gridSize;
-    const oy = (NP.state.time * 0.1 - NP.player.y * 0.05) % gridSize;
+    // FIX #10: use positive modulo so grid origin doesn't jump around when the
+    // expression goes negative.
+    const ox = pmod(NP.state.time * 0.15 - NP.player.x * 0.05, gridSize);
+    const oy = pmod(NP.state.time * 0.1  - NP.player.y * 0.05, gridSize);
     ctx.beginPath();
-    for (let x = ox; x < W; x += gridSize) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-    for (let y = oy; y < H; y += gridSize) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    for (let x = ox - gridSize; x < W; x += gridSize) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+    for (let y = oy - gridSize; y < H; y += gridSize) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
     ctx.stroke();
 
     // Radial glow around player

@@ -28,6 +28,21 @@ NP.Input = {
       if (e.button === 2) this.mouse.rightDown = false;
     });
     window.addEventListener('contextmenu', e => e.preventDefault());
+
+    // FIX #5: release stuck mouse buttons / keys when focus leaves the window
+    // (e.g. user drags off-screen and releases, or alt-tabs while holding).
+    const releaseAll = () => {
+      this.mouse.down = false;
+      this.mouse.rightDown = false;
+      this.keys = {};
+    };
+    window.addEventListener('blur', releaseAll);
+    document.addEventListener('mouseleave', () => {
+      // Triggered when cursor leaves the document — release mouse only,
+      // keep keyboard state since the player may still be holding WASD.
+      this.mouse.down = false;
+      this.mouse.rightDown = false;
+    });
   },
 
   // Helpers

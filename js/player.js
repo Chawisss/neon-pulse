@@ -76,6 +76,23 @@ NP.Player = {
     return { name: '', perks: {} };
   },
 
+  // FIX #3: shared damage helper — respects shields uniformly across
+  // bullets, explosions, and chain lightning.
+  damageEnemy(e, amount) {
+    if (e.shield && e.shield > 0) {
+      e.shield -= amount * 25;
+      e.hitFlash = 6;
+      return false; // shield absorbed it, HP untouched
+    }
+    e.hp -= amount;
+    e.hitFlash = 8;
+    if (e.hp <= 0) {
+      this.killEnemy(e);
+      return true;
+    }
+    return false;
+  },
+
   // ---- Weapon firing --------------------------------------------
   fireWeapon() {
     const p = NP.player;
@@ -84,6 +101,9 @@ NP.Player = {
     const a = NP.angleTo(p.x, p.y, NP.Input.mouse.x, NP.Input.mouse.y);
     const mx = p.x + Math.cos(a) * p.r * 1.4;
     const my = p.y + Math.sin(a) * p.r * 1.4;
+
+    // FIX #1: track whether the shot actually fired so we don't burn ammo on whiffed Lightning
+    let fired = true;
 
     if (p.weapon === 'PULSE') {
       this.fireBullet(mx, my, a, 14, w.color, w.damage, tier);
@@ -111,11 +131,13 @@ NP.Player = {
       if (nearest) {
         this.chainLightning(p.x, p.y, nearest, 4, w.damage);
         NP.sfx.lightning();
+      } else {
+        fired = false; // FIX #1: no target → no ammo spent
       }
     }
 
     // Ammo
-    if (p.weaponAmmo !== Infinity) {
+    if (fired && p.weaponAmmo !== Infinity) {
       p.weaponAmmo -= 1;
       if (p.weaponAmmo <= 0) {
         p.weapon = 'PULSE';
@@ -160,13 +182,12 @@ NP.Player = {
     const hit = new Set();
     for (let c = 0; c < chains && lastTarget; c++) {
       NP.Effects.spawnLightning(lastX, lastY, lastTarget.x, lastTarget.y, NP.WEAPONS.LIGHTNING.color);
-      lastTarget.hp -= damage;
-      lastTarget.hitFlash = 8;
+      // FIX #3: use damageEnemy so shields are respected
+      this.damageEnemy(lastTarget, damage);
       hit.add(lastTarget);
       NP.Effects.spawnParticles(lastTarget.x, lastTarget.y, 8, '#fff', {
         speed: 3, life: 14, size: 2
       });
-      if (lastTarget.hp <= 0) this.killEnemy(lastTarget);
       lastX = lastTarget.x; lastY = lastTarget.y;
       // Find next nearest
       let next = null, nd = 250;
@@ -184,11 +205,13 @@ NP.Player = {
     NP.Effects.spawnParticles(x, y, 30, '#ff8800', { speed: 8, life: 35, size: 5 });
     NP.Effects.spawnParticles(x, y, 15, '#fff', { speed: 6, life: 25, size: 4 });
     NP.state.shake += 8;
-    for (const e of NP.enemies) {
+    // FIX #2: reverse loop because killEnemy splices NP.enemies. for...of
+    // would skip the entry after each kill.
+    // FIX #3: route through damageEnemy so shields apply.
+    for (let i = NP.enemies.length - 1; i >= 0; i--) {
+      const e = NP.enemies[i];
       if (NP.dist(x, y, e.x, e.y) < radius) {
-        e.hp -= damage;
-        e.hitFlash = 8;
-        if (e.hp <= 0) this.killEnemy(e);
+        this.damageEnemy(e, damage);
       }
     }
   },
@@ -248,12 +271,15 @@ NP.Player = {
       NP.sfx.bigExplode();
       NP.state.flash = 0.85; NP.state.flashColor = e.color;
       NP.state.slowmo = 0.15; NP.state.slowmoTimer = 80;
+      // FIX #4: register timeouts so reset() can cancel them. Otherwise the boss-
+      // death shockwaves keep firing during the new game.
       for (let i = 0; i < 6; i++) {
-        setTimeout(() => {
+        const id = setTimeout(() => {
           NP.Effects.spawnShockwave(e.x, e.y, '#fff', 450, 45);
           NP.Effects.spawnShockwave(e.x, e.y, e.color, 350, 55);
           NP.state.shake += 10;
         }, i * 120);
+        NP.Game.bossDeathTimeouts.push(id);
       }
       NP.Pickups.maybeDrop(e.x, e.y, 'heal');
       NP.Pickups.maybeDrop(e.x + 30, e.y,

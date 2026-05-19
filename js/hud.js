@@ -5,6 +5,17 @@
 NP.HUD = {
   els: {},
 
+  // FIX #11: cache last written values so we don't touch the DOM unless
+  // something actually changed. Trims a sizable chunk of layout/paint work
+  // at 60+fps and matters more on lower-end devices.
+  _last: {
+    score: -1, combo: -1, comboMeter: -1, tier: '',
+    comboOpacity: -1, comboScale: -1,
+    health: -1, healthFill: -1,
+    energy: -1, energyFill: -1,
+    dashFill: -1, dashText: '',
+  },
+
   init() {
     this.els = {
       score:        document.getElementById('score'),
@@ -29,25 +40,80 @@ NP.HUD = {
   // Per-frame HUD update
   update() {
     const s = NP.state, p = NP.player;
-    this.els.score.textContent = String(s.score).padStart(6, '0');
+    const L = this._last;
 
-    this.els.comboNum.textContent = s.combo;
-    this.els.comboMeter.style.width = (s.comboTimer / NP.CONFIG.COMBO_DURATION * 100) + '%';
-    this.els.comboTier.textContent = NP.Player.getComboTier().name;
-    this.els.combo.style.opacity = s.combo > 1 ? 1 : 0.4;
-    this.els.combo.style.transform = s.combo > 1
-      ? `scale(${1 + Math.min(s.combo, 30) * 0.012})`
-      : 'scale(1)';
+    // Score
+    if (s.score !== L.score) {
+      this.els.score.textContent = String(s.score).padStart(6, '0');
+      L.score = s.score;
+    }
 
-    this.els.healthFill.style.width = (p.hp / p.maxHp * 100) + '%';
-    this.els.healthText.textContent = Math.ceil(p.hp);
-    this.els.energyFill.style.width = (p.energy / p.maxEnergy * 100) + '%';
-    this.els.energyText.textContent = Math.ceil(p.energy);
+    // Combo number + meter + tier + visual emphasis
+    if (s.combo !== L.combo) {
+      this.els.comboNum.textContent = s.combo;
+      L.combo = s.combo;
+    }
+    // Meter width — we round to 0.1% buckets to avoid spamming style changes
+    const meterPct = Math.round(s.comboTimer / NP.CONFIG.COMBO_DURATION * 1000) / 10;
+    if (meterPct !== L.comboMeter) {
+      this.els.comboMeter.style.width = meterPct + '%';
+      L.comboMeter = meterPct;
+    }
+    const tierName = NP.Player.getComboTier().name;
+    if (tierName !== L.tier) {
+      this.els.comboTier.textContent = tierName;
+      L.tier = tierName;
+    }
+    const opacity = s.combo > 1 ? 1 : 0.4;
+    if (opacity !== L.comboOpacity) {
+      this.els.combo.style.opacity = opacity;
+      L.comboOpacity = opacity;
+    }
+    // Scale — quantize to 2 decimal places
+    const scale = s.combo > 1
+      ? Math.round((1 + Math.min(s.combo, 30) * 0.012) * 100) / 100
+      : 1;
+    if (scale !== L.comboScale) {
+      this.els.combo.style.transform = `scale(${scale})`;
+      L.comboScale = scale;
+    }
 
+    // Health
+    const hpInt = Math.ceil(p.hp);
+    if (hpInt !== L.health) {
+      this.els.healthText.textContent = hpInt;
+      L.health = hpInt;
+    }
+    const hpPct = Math.round(p.hp / p.maxHp * 1000) / 10;
+    if (hpPct !== L.healthFill) {
+      this.els.healthFill.style.width = hpPct + '%';
+      L.healthFill = hpPct;
+    }
+
+    // Energy
+    const enInt = Math.ceil(p.energy);
+    if (enInt !== L.energy) {
+      this.els.energyText.textContent = enInt;
+      L.energy = enInt;
+    }
+    const enPct = Math.round(p.energy / p.maxEnergy * 1000) / 10;
+    if (enPct !== L.energyFill) {
+      this.els.energyFill.style.width = enPct + '%';
+      L.energyFill = enPct;
+    }
+
+    // Dash
     const dashReady = p.dashCooldown <= 0;
-    this.els.shieldFill.style.width =
-      (dashReady ? 100 : (1 - p.dashCooldown / NP.CONFIG.DASH_COOLDOWN) * 100) + '%';
-    this.els.dashText.textContent = dashReady ? 'READY' : '...';
+    const dashPct = dashReady ? 100 : Math.round((1 - p.dashCooldown / NP.CONFIG.DASH_COOLDOWN) * 1000) / 10;
+    if (dashPct !== L.dashFill) {
+      this.els.shieldFill.style.width = dashPct + '%';
+      L.dashFill = dashPct;
+    }
+    const dashTxt = dashReady ? 'READY' : '...';
+    if (dashTxt !== L.dashText) {
+      this.els.dashText.textContent = dashTxt;
+      L.dashText = dashTxt;
+    }
   },
 
   // Update weapon display when player picks up a new weapon
