@@ -70,10 +70,12 @@ NP.Effects = {
       if (p.life <= 0) NP.particles.splice(i, 1);
     }
 
-    // Shockwaves
+    // Shockwaves — exponential approach to maxR, time-corrected
     for (let i = NP.shockwaves.length - 1; i >= 0; i--) {
       const s = NP.shockwaves[i];
-      s.r += (s.maxR - s.r) * 0.13 * T;
+      // FIX #8: time-correct exponential ease so wave expansion looks the same
+      // at any frame rate. (1 - 0.87^T) collapses to 0.13 when T=1.)
+      s.r = s.maxR + (s.r - s.maxR) * Math.pow(0.87, T);
       s.life -= T;
       if (s.life <= 0) NP.shockwaves.splice(i, 1);
     }
@@ -88,7 +90,9 @@ NP.Effects = {
     for (let i = NP.floaters.length - 1; i >= 0; i--) {
       const f = NP.floaters[i];
       f.y += f.vy * T;
-      f.vy *= 0.97;
+      // FIX #9: time-correct decay so the floater rises the same distance
+      // regardless of refresh rate.
+      f.vy *= Math.pow(0.97, T);
       f.life -= T;
       if (f.life <= 0) NP.floaters.splice(i, 1);
     }
@@ -114,12 +118,13 @@ NP.Effects = {
   drawParticles(ctx) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    // Slight optimization: set shadowBlur once (we use the same blur for all
+    // glowing particles). Color still has to change per-particle.
+    ctx.shadowBlur = 14;
     for (const p of NP.particles) {
       const a = p.life / p.maxLife;
-      if (p.glow) {
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 14;
-      }
+      if (p.glow) ctx.shadowColor = p.color;
+      else        ctx.shadowColor = 'transparent';
       ctx.fillStyle = p.color;
       ctx.globalAlpha = a;
       ctx.beginPath();

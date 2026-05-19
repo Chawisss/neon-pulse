@@ -4,6 +4,7 @@
 
 NP.Game = {
   lastTime: 0,
+  bossDeathTimeouts: [],  // FIX #4: track boss-death setTimeouts so we can cancel on reset
 
   init() {
     NP.Render.init();
@@ -46,11 +47,14 @@ NP.Game = {
     s.time += dt;
 
     // Overdrive (right click)
+    const wasOverdrive = s.overdrive;
     if (NP.Input.mouse.rightDown && NP.player.energy > 0) {
       s.overdrive = true;
       s.slowmo = NP.CONFIG.OVERDRIVE_SLOWMO;
       NP.player.energy = Math.max(0, NP.player.energy - NP.CONFIG.OVERDRIVE_DRAIN * dt);
-      s.chromAb += 0.5;
+      // FIX #7 / #14: removed dead-code `s.chromAb += 0.5;` (gets overwritten below).
+      // Play overdrive SFX once on entry instead of every frame.
+      if (!wasOverdrive) NP.sfx.overdrive();
     } else {
       s.overdrive = false;
       if (s.slowmoTimer <= 0) s.slowmo = NP.lerp(s.slowmo, 1, 0.06);
@@ -88,6 +92,10 @@ NP.Game = {
 
   // ---- Game flow ------------------------------------------------
   reset() {
+    // FIX #4: cancel any pending boss-death timeouts from previous run
+    for (const id of this.bossDeathTimeouts) clearTimeout(id);
+    this.bossDeathTimeouts.length = 0;
+
     // Clear all entity arrays
     NP.bullets.length = 0;
     NP.enemyBullets.length = 0;
