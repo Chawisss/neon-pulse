@@ -54,7 +54,7 @@ NP.HUD = {
       L.combo = s.combo;
     }
     // Meter width — we round to 0.1% buckets to avoid spamming style changes
-    const meterPct = Math.round(s.comboTimer / NP.CONFIG.COMBO_DURATION * 1000) / 10;
+    const meterPct = NP.clamp(Math.round(s.comboTimer / NP.CONFIG.COMBO_DURATION * 1000) / 10, 0, 100);
     if (meterPct !== L.comboMeter) {
       this.els.comboMeter.style.width = meterPct + '%';
       L.comboMeter = meterPct;
@@ -84,7 +84,7 @@ NP.HUD = {
       this.els.healthText.textContent = hpInt;
       L.health = hpInt;
     }
-    const hpPct = Math.round(p.hp / p.maxHp * 1000) / 10;
+    const hpPct = NP.clamp(Math.round(p.hp / p.maxHp * 1000) / 10, 0, 100);
     if (hpPct !== L.healthFill) {
       this.els.healthFill.style.width = hpPct + '%';
       L.healthFill = hpPct;
@@ -96,7 +96,7 @@ NP.HUD = {
       this.els.energyText.textContent = enInt;
       L.energy = enInt;
     }
-    const enPct = Math.round(p.energy / p.maxEnergy * 1000) / 10;
+    const enPct = NP.clamp(Math.round(p.energy / p.maxEnergy * 1000) / 10, 0, 100);
     if (enPct !== L.energyFill) {
       this.els.energyFill.style.width = enPct + '%';
       L.energyFill = enPct;
@@ -104,7 +104,7 @@ NP.HUD = {
 
     // Dash
     const dashReady = p.dashCooldown <= 0;
-    const dashPct = dashReady ? 100 : Math.round((1 - p.dashCooldown / NP.CONFIG.DASH_COOLDOWN) * 1000) / 10;
+    const dashPct = dashReady ? 100 : NP.clamp(Math.round((1 - p.dashCooldown / NP.CONFIG.DASH_COOLDOWN) * 1000) / 10, 0, 100);
     if (dashPct !== L.dashFill) {
       this.els.shieldFill.style.width = dashPct + '%';
       L.dashFill = dashPct;

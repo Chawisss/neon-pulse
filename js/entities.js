@@ -313,7 +313,7 @@ NP.Enemies = {
       b.trailTimer = (b.trailTimer || 0) - T;
       if (b.trailTimer <= 0) {
         NP.Effects.spawnParticles(b.x, b.y, 1, b.color, {
-          speed: 0.2, life: 14, size: 1.5, drag: 0.9
+          speed: 0.2, life: 14, size: 1.5, drag: 0.9, lowPriority: true
         });
         b.trailTimer = 3;
       }
@@ -549,11 +549,13 @@ NP.Bullets = {
       // Bullet trails
       b.trailTimer = (b.trailTimer || 0) - T;
       if (b.trailTimer <= 0) {
-        const trailSize = b.isMissile ? 4 : (b.isLaser ? 3 : 2);
+        const trailSize = b.trailSize || (b.isMissile ? 4 : (b.isLaser ? 3 : 2));
+        const trailLife = b.trailLife || (b.isLaser ? 14 : 18);
+        const trailEvery = b.trailEvery || (b.isLaser ? 0.75 : (b.isMissile ? 1.6 : 2));
         NP.Effects.spawnParticles(b.x, b.y, 1, b.color, {
-          speed: 0.3, life: 18, size: trailSize, drag: 0.85
+          speed: 0.3, life: trailLife, size: trailSize, drag: 0.85, lowPriority: true
         });
-        b.trailTimer = b.isLaser ? 0.5 : 1.2;
+        b.trailTimer = trailEvery;
       }
 
       // Off-screen / expired

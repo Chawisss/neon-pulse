@@ -110,7 +110,12 @@ NP.Player = {
       NP.sfx.shoot();
     } else if (p.weapon === 'SPREAD') {
       for (let i = -2; i <= 2; i++) {
-        this.fireBullet(mx, my, a + i * 0.13, 12, w.color, w.damage, tier);
+        this.fireBullet(mx, my, a + i * 0.13, 12, w.color, w.damage, tier, false, false, {
+          muzzleParticles: 2,
+          trailEvery: 4,
+          trailLife: 12,
+          trailSize: 1.4,
+        });
       }
       NP.sfx.spread();
     } else if (p.weapon === 'LASER') {
@@ -147,7 +152,7 @@ NP.Player = {
     }
   },
 
-  fireBullet(x, y, angle, speed, color, damage, tier, isLaser = false, isMissile = false) {
+  fireBullet(x, y, angle, speed, color, damage, tier, isLaser = false, isMissile = false, opts = {}) {
     const b = {
       x, y, angle,
       vx: Math.cos(angle) * speed,
@@ -159,6 +164,9 @@ NP.Player = {
       isLaser, isMissile,
       target: null,
       trailTimer: 0,
+      trailEvery: opts.trailEvery,
+      trailLife: opts.trailLife,
+      trailSize: opts.trailSize,
     };
 
     // Missile homing target
@@ -171,7 +179,7 @@ NP.Player = {
       b.target = nearest;
     }
     NP.bullets.push(b);
-    NP.Effects.spawnParticles(x, y, 4, color, {
+    NP.Effects.spawnParticles(x, y, opts.muzzleParticles || 4, color, {
       speed: 3, life: 10, size: 2, angle, spread: 0.5
     });
   },

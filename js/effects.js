@@ -6,12 +6,28 @@
 NP.Effects = {
   // ---- Spawners -------------------------------------------------
   spawnParticles(x, y, count, color, opts = {}) {
+    const maxParticles = NP.CONFIG.MAX_PARTICLES || Infinity;
+    const lowPriorityLimit = NP.CONFIG.LOW_PRIORITY_PARTICLE_LIMIT || maxParticles;
+    const isLowPriority = opts.lowPriority === true;
+    const limit = isLowPriority ? lowPriorityLimit : maxParticles;
+
+    if (isLowPriority && NP.particles.length >= limit) return;
+    if (!isLowPriority && NP.particles.length + count > maxParticles) {
+      const overflow = NP.particles.length + count - maxParticles;
+      const trim = Math.min(NP.particles.length, overflow + (NP.CONFIG.PARTICLE_TRIM_BATCH || 0));
+      NP.particles.splice(0, trim);
+    }
+
+    const room = Math.max(0, limit - NP.particles.length);
+    const spawnCount = Math.min(count, room);
+    if (spawnCount <= 0) return;
+
     const speed = opts.speed || 4;
     const life = opts.life || 40;
     const size = opts.size || 3;
     const baseAngle = opts.angle;
     const spread = opts.spread || 0.5;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < spawnCount; i++) {
       const a = baseAngle !== undefined
         ? baseAngle + NP.rand(-spread, spread)
         : NP.rand(0, NP.TAU);
