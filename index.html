@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NEON PULSE — OVERDRIVE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<canvas id="game"></canvas>
+<canvas id="fx-canvas"></canvas>
+
+<div id="hud-top-left">
+  <div id="score">000000</div>
+  <div id="wave-info">WAVE 01</div>
+  <div id="weapon-info">
+    <div style="opacity:0.5">WEAPON</div>
+    <div id="weapon-name">PULSE</div>
+  </div>
+</div>
+
+<div id="combo">
+  <div class="num"><span id="combo-num">1</span><span class="x">×</span></div>
+  <div class="meter"><span id="combo-meter"></span></div>
+  <div class="tier" id="combo-tier">&nbsp;</div>
+</div>
+
+<div id="hud-bottom">
+  <div class="bar-group">
+    <div class="bar-label"><span>HULL</span><span id="health-text">100</span></div>
+    <div class="bar"><span id="health-fill" style="width:100%"></span></div>
+  </div>
+  <div class="bar-group">
+    <div class="bar-label"><span>OVERDRIVE<span class="keybind">RMB</span></span><span id="energy-text">100</span></div>
+    <div class="bar"><span id="energy-fill" style="width:100%"></span></div>
+  </div>
+  <div class="bar-group">
+    <div class="bar-label"><span>DASH<span class="keybind">SPC</span></span><span id="dash-text">READY</span></div>
+    <div class="bar"><span id="shield-fill" style="width:100%"></span></div>
+  </div>
+</div>
+
+<div id="wave-banner"></div>
+<div id="boss-warning">⚠ HOSTILE ENTITY DETECTED ⚠</div>
+<div id="pickup-notif"></div>
+
+<div id="overlay"></div>
+
+<div id="start-screen" class="screen">
+  <h1>NEON&nbsp;PULSE</h1>
+  <h2>// OVERDRIVE //</h2>
+  <p>
+    A cascade of geometric horrors approaches the grid.<br>
+    Build your combo. Collect weapons. Bend time. Survive.
+  </p>
+  <div class="controls-grid">
+    <div class="k">MOVE</div><div class="v"><span>W</span><span>A</span><span>S</span><span>D</span></div>
+    <div class="k">AIM / FIRE</div><div class="v"><span>MOUSE</span></div>
+    <div class="k">OVERDRIVE</div><div class="v"><span>RIGHT CLICK</span><span>(time dilation)</span></div>
+    <div class="k">DASH</div><div class="v"><span>SPACE</span></div>
+  </div>
+  <button class="start-btn" id="start-btn">INITIATE</button>
+</div>
+
+<div id="game-over-screen" class="screen hidden">
+  <h1>SYSTEM&nbsp;FAILURE</h1>
+  <h2>// CONNECTION LOST //</h2>
+  <div style="font-size:11px;letter-spacing:4px;opacity:0.6">FINAL SCORE</div>
+  <div id="final-score">0</div>
+  <div class="stat-row" id="game-over-stats"></div>
+  <button class="start-btn" id="restart-btn">REINITIALIZE</button>
+</div>
+
+<!-- Load order matters: dependencies first -->
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/state.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/background.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/player.js"></script>
+<script src="js/waves.js"></script>
+<script src="js/render.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
