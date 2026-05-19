@@ -48,19 +48,55 @@
 <div id="overlay"></div>
 
 <div id="start-screen" class="screen">
-  <h1>NEON&nbsp;PULSE</h1>
-  <h2>// OVERDRIVE //</h2>
-  <p>
-    A cascade of geometric horrors approaches the grid.<br>
-    Build your combo. Collect weapons. Bend time. Survive.
-  </p>
-  <div class="controls-grid">
-    <div class="k">MOVE</div><div class="v"><span>W</span><span>A</span><span>S</span><span>D</span></div>
-    <div class="k">AIM / FIRE</div><div class="v"><span>MOUSE</span></div>
-    <div class="k">OVERDRIVE</div><div class="v"><span>RIGHT CLICK</span><span>(time dilation)</span></div>
-    <div class="k">DASH</div><div class="v"><span>SPACE</span></div>
+  <div class="start-shell">
+    <div class="screen-strip">
+      <span class="strip-status">SYS://NEON-PULSE.OVERDRIVE &mdash; STANDBY</span>
+      <span>BEST&nbsp;<b id="menu-best">000000</b></span>
+    </div>
+
+    <div class="title-lockup">
+      <div class="screen-kicker">// ARENA SURVIVAL PROTOCOL</div>
+      <h1>NEON&nbsp;PULSE</h1>
+      <h2>// OVERDRIVE //</h2>
+    </div>
+
+    <div class="start-layout">
+      <div class="briefing-panel">
+        <div>
+          <div class="panel-title" style="color:#2effe8">// INCOMING TRANSMISSION</div>
+          <p>
+            A cascade of geometric horrors approaches the grid.
+            Build your combo. Collect weapons. Bend time.
+            Survive as long as the system holds.
+          </p>
+        </div>
+        <div class="start-stats">
+          <div><b>10</b><span>HOSTILE TYPES</span></div>
+          <div><b>05</b><span>WEAPONS</span></div>
+          <div><b>&infin;</b><span>WAVES</span></div>
+        </div>
+      </div>
+
+      <div class="controls-panel">
+        <div class="panel-title">// CONTROL SCHEME</div>
+        <div class="controls-grid">
+          <div class="k">MOVE</div>
+          <div class="v"><span>W</span><span>A</span><span>S</span><span>D</span></div>
+          <div class="k">AIM / FIRE</div>
+          <div class="v"><span>MOUSE</span></div>
+          <div class="k">OVERDRIVE</div>
+          <div class="v"><span>RMB</span></div>
+          <div class="k">DASH</div>
+          <div class="v"><span>SPACE</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="start-actions">
+      <button class="start-btn" id="start-btn">&#9656; INITIATE</button>
+      <div class="start-hint">PRESS SPACE / ENTER TO BEGIN</div>
+    </div>
   </div>
-  <button class="start-btn" id="start-btn">INITIATE</button>
 </div>
 
 <div id="game-over-screen" class="screen hidden">
