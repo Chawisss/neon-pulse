@@ -33,6 +33,9 @@ NP.CONFIG = {
   OVERDRIVE_REGEN: 0.15,
   OVERDRIVE_SLOWMO: 0.35,
   COMBO_DURATION: 200,
+  MAX_PARTICLES: 700,
+  LOW_PRIORITY_PARTICLE_LIMIT: 420,
+  PARTICLE_TRIM_BATCH: 32,
   // To change starting weapon, edit player.weapon in state.js or game.js reset()
   START_WEAPON: 'PULSE',
 };

@@ -5,6 +5,7 @@
 NP.Game = {
   lastTime: 0,
   bossDeathTimeouts: [],  // FIX #4: track boss-death setTimeouts so we can cancel on reset
+  gameOverTimeout: null,
 
   init() {
     NP.Render.init();
@@ -16,6 +17,7 @@ NP.Game = {
     NP.player.x = NP.W / 2;
     NP.player.y = NP.H / 2;
     NP.HUD.updateWeapon();
+    this.updateMenuBest();
 
     // UI buttons
     document.getElementById('start-btn').addEventListener('click', () => this.start());
@@ -77,7 +79,7 @@ NP.Game = {
 
     // Combo decay
     if (s.comboTimer > 0) {
-      s.comboTimer -= T;
+      s.comboTimer = Math.max(0, s.comboTimer - T);
       if (s.comboTimer <= 0) {
         s.combo = 1;
         s.comboKills = 0;
@@ -91,10 +93,40 @@ NP.Game = {
   },
 
   // ---- Game flow ------------------------------------------------
+  readHighScore() {
+    try {
+      const stored = parseInt(localStorage.getItem('neonPulseHigh') || '0', 10);
+      return Number.isFinite(stored) ? stored : 0;
+    } catch (err) {
+      return 0;
+    }
+  },
+
+  saveHighScore(score) {
+    const high = this.readHighScore();
+    if (score <= high) return high;
+    try {
+      localStorage.setItem('neonPulseHigh', String(score));
+      return score;
+    } catch (err) {
+      return Math.max(score, high);
+    }
+  },
+
+  updateMenuBest() {
+    const el = document.getElementById('menu-best');
+    if (el) el.textContent = String(this.readHighScore()).padStart(6, '0');
+  },
+
   reset() {
     // FIX #4: cancel any pending boss-death timeouts from previous run
     for (const id of this.bossDeathTimeouts) clearTimeout(id);
     this.bossDeathTimeouts.length = 0;
+    if (this.gameOverTimeout) {
+      clearTimeout(this.gameOverTimeout);
+      this.gameOverTimeout = null;
+    }
+    if (NP.Waves.clearPendingTimeouts) NP.Waves.clearPendingTimeouts();
 
     // Clear all entity arrays
     NP.bullets.length = 0;
@@ -109,8 +141,11 @@ NP.Game = {
 
     // Reset state
     Object.assign(NP.state, {
+      running: false, time: 0,
       score: 0, combo: 1, comboTimer: 0, comboKills: 0,
-      wave: 0, shake: 0, flash: 0, slowmo: 1, slowmoTimer: 0,
+      wave: 0, waveTimer: 0, spawnQueue: [], spawnTimer: 0,
+      shake: 0, flash: 0, flashColor: '#fff',
+      slowmo: 1, slowmoTimer: 0, overdrive: false, chromAb: 0,
       kills: 0, maxCombo: 1, startTime: performance.now(),
     });
 
@@ -120,9 +155,13 @@ NP.Game = {
     p.vx = 0; p.vy = 0;
     p.hp = p.maxHp;
     p.energy = p.maxEnergy;
+    p.fireCooldown = 0;
     p.invuln = 0;
     p.dashCooldown = 0;
     p.dashTimer = 0;
+    p.dashDir = { x: 0, y: 0 };
+    p.angle = 0;
+    p.trailTimer = 0;
     p.weapon = NP.CONFIG.START_WEAPON;
     p.weaponAmmo = NP.WEAPONS[p.weapon].ammo;
     NP.HUD.updateWeapon();
@@ -139,8 +178,8 @@ NP.Game = {
 
   gameOver() {
     NP.state.running = false;
-    const high = parseInt(localStorage.getItem('neonPulseHigh') || '0');
-    if (NP.state.score > high) localStorage.setItem('neonPulseHigh', NP.state.score);
+    const best = this.saveHighScore(NP.state.score);
+    this.updateMenuBest();
 
     // Death explosion
     NP.Effects.spawnParticles(NP.player.x, NP.player.y, 100, '#ff003c', {
@@ -158,14 +197,25 @@ NP.Game = {
 
     const elapsed = ((performance.now() - NP.state.startTime) / 1000) | 0;
     const m = Math.floor(elapsed / 60), sec = elapsed % 60;
+    const final = {
+      score: NP.state.score,
+      wave: NP.state.wave,
+      kills: NP.state.kills,
+      maxCombo: NP.state.maxCombo,
+      best,
+    };
 
-    setTimeout(() => {
+    this.gameOverTimeout = setTimeout(() => {
+      this.gameOverTimeout = null;
+      if (NP.state.running) return;
       document.getElementById('final-score').textContent =
-        String(NP.state.score).padStart(6, '0');
+        String(final.score).padStart(6, '0');
       document.getElementById('game-over-stats').innerHTML = `
-        WAVES SURVIVED <b>${NP.state.wave}</b> &nbsp;&nbsp; KILLS <b>${NP.state.kills}</b><br>
-        MAX COMBO <b>${NP.state.maxCombo}×</b> &nbsp;&nbsp; TIME <b>${m}:${String(sec).padStart(2,'0')}</b><br>
-        BEST <b>${String(Math.max(NP.state.score, high)).padStart(6,'0')}</b>
+        <span class="stat-item">WAVES SURVIVED <b>${final.wave}</b></span>
+        <span class="stat-item">KILLS <b>${final.kills}</b></span>
+        <span class="stat-item">MAX COMBO <b>${final.maxCombo}&times;</b></span>
+        <span class="stat-item">TIME <b>${m}:${String(sec).padStart(2,'0')}</b></span>
+        <span class="stat-item">BEST <b>${String(final.best).padStart(6,'0')}</b></span>
       `;
       document.getElementById('game-over-screen').classList.remove('hidden');
     }, 1600);

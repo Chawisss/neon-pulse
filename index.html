@@ -64,12 +64,23 @@
 </div>
 
 <div id="game-over-screen" class="screen hidden">
-  <h1>SYSTEM&nbsp;FAILURE</h1>
-  <h2>// CONNECTION LOST //</h2>
-  <div style="font-size:11px;letter-spacing:4px;opacity:0.6">FINAL SCORE</div>
-  <div id="final-score">0</div>
-  <div class="stat-row" id="game-over-stats"></div>
-  <button class="start-btn" id="restart-btn">REINITIALIZE</button>
+  <div class="game-over-shell">
+    <div class="game-over-title">
+      <div class="game-over-eyebrow">RUN ENDED</div>
+      <h1><span>SYSTEM</span> <span>FAILURE</span></h1>
+    </div>
+
+    <div class="score-panel">
+      <div class="game-over-label">FINAL SCORE</div>
+      <div id="final-score">0</div>
+    </div>
+
+    <div class="stat-row" id="game-over-stats"></div>
+
+    <div class="game-over-actions">
+      <button class="start-btn" id="restart-btn">REINITIALIZE</button>
+    </div>
+  </div>
 </div>
 
 <!-- Load order matters: dependencies first -->

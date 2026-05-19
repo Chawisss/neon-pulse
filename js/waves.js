@@ -3,6 +3,15 @@
 // ============================================================
 
 NP.Waves = {
+  bossWarningTimeout: null,
+
+  clearPendingTimeouts() {
+    if (this.bossWarningTimeout) {
+      clearTimeout(this.bossWarningTimeout);
+      this.bossWarningTimeout = null;
+    }
+  },
+
   // Build the spawn queue for a given wave number
   buildWave(n) {
     const q = [];
@@ -33,22 +42,26 @@ NP.Waves = {
     for (let i = 0; i < count; i++) {
       q.push({
         type: types[NP.randInt(0, types.length - 1)],
-        delay: 30 + i * NP.rand(1, 3),
+        delay: 30 + i * NP.rand(0,1),
       });
     }
     return q;
   },
 
   start(n) {
+    this.clearPendingTimeouts();
     NP.state.wave = n;
     NP.state.spawnQueue = this.buildWave(n);
     NP.state.spawnTimer = 0;
+    NP.state.waveTimer = 0;
 
     NP.HUD.setWaveLabel(n);
     NP.HUD.showWaveBanner(n);
 
     if (n % 5 === 0) {
-      setTimeout(() => {
+      this.bossWarningTimeout = setTimeout(() => {
+        this.bossWarningTimeout = null;
+        if (!NP.state.running || NP.state.wave !== n) return;
         NP.HUD.showBossWarning();
         NP.sfx.boss();
       }, 50);
